@@ -1,256 +1,255 @@
-# 常用命令速查
+# Common Commands Reference
 
-> 深度学习项目复现过程中常用的命令集合
+> Commonly used commands for deep learning project reproduction
 
 ---
 
-## 环境管理
+## Environment Management
 
 ### Conda
 
 ```bash
-# 创建环境
+# Create environment
 conda create -n <env_name> python=3.10
 conda create -n <env_name> python=3.10 pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
 
-# 激活环境
+# Activate environment
 conda activate <env_name>
-source ~/anaconda3/etc/profile.d/conda.sh && conda activate <env_name>  # 某些 Linux
+source ~/anaconda3/etc/profile.d/conda.sh && conda activate <env_name>  # Some Linux
 
-# 退出环境
+# Deactivate environment
 conda deactivate
 
-# 列出环境
+# List environments
 conda env list
 
-# 删除环境
+# Remove environment
 conda env remove -n <env_name>
 
-# 导出环境
+# Export environment
 conda env export > environment.yml
 conda env export --from-history > environment_simple.yml
 
-# 从 yaml 创建
+# Create from yaml
 conda env create -f environment.yml
 ```
 
 ### pip / venv
 
 ```bash
-# 创建虚拟环境
+# Create virtual environment
 python -m venv venv
 
-# 激活 (Linux/Mac)
+# Activate (Linux/Mac)
 source venv/bin/activate
 
-# 激活 (Windows)
+# Activate (Windows)
 venv\Scripts\activate
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
-pip install -e .  # 可编辑模式安装
+pip install -e .  # Editable mode
 
-# 导出依赖
+# Export dependencies
 pip freeze > requirements.txt
 
-# 升级包
+# Upgrade package
 pip install --upgrade <package>
 pip install -U <package>
 ```
 
 ---
 
-## 镜像源
+## Mirror Sources
 
-### pip 镜像
+### pip Mirror
 
 ```bash
-# 临时使用
+# Temporary use
 pip install <package> -i https://pypi.tuna.tsinghua.edu.cn/simple
 pip install <package> -i https://mirrors.aliyun.com/pypi/simple/
 
-# 设为默认
+# Set as default
 pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 恢复默认
+# Restore default
 pip config unset global.index-url
 ```
 
-### conda 镜像
+### conda Mirror
 
 ```bash
-# 添加镜像
+# Add mirror channels
 conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
 conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free
 conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch
 
-# 查看配置
+# Check configuration
 conda config --show channels
 ```
 
-### Git 代理
+### Git Proxy
 
 ```bash
-# 替换 git:// 为 https://
+# Replace git:// with https://
 git config --global url."https://github.com/".insteadOf "git@github.com:"
 
-# 设置代理
+# Set proxy
 git config --global http.proxy http://127.0.0.1:7890
 git config --global https.proxy https://127.0.0.1:7890
 
-# 取消代理
+# Remove proxy
 git config --global --unset http.proxy
 git config --global --unset https.proxy
 ```
 
 ---
 
-## Git 操作
+## Git Operations
 
 ```bash
-# 克隆仓库
+# Clone repository
 git clone https://github.com/username/repo.git
-git clone --depth 1 https://github.com/username/repo.git  # 浅克隆
+git clone --depth 1 https://github.com/username/repo.git  # Shallow clone
 
-# 创建分支
+# Create branch
 git checkout -b experiment/xxx
 
-# 查看分支
+# List branches
 git branch -a
 
-# 切换分支
+# Switch branch
 git checkout main
 git checkout -b new_branch
 
-# 提交更改
+# Commit changes
 git add .
 git commit -m "description"
 
-# 查看远程
+# Check remote
 git remote -v
 git fetch origin
 ```
 
 ---
 
-## 模型下载
+## Model Download
 
 ### HuggingFace
 
 ```bash
-# 安装 huggingface_hub
+# Install huggingface_hub
 pip install huggingface_hub
 
-# 下载模型
+# Download model
 python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='meta-llama/Llama-2-7b', local_dir='./Llama-2-7b')"
 
-# 或使用 hf_hub_download
+# Or use hf_hub_download
 python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='meta-llama/Llama-2-7b-hf', filename='config.json', local_dir='./models')"
 
-# 登录
+# Login
 huggingface-cli login
-# 或
+# Or
 python -c "from huggingface_hub import login; login('your_token')"
 ```
 
 ### Git LFS
 
 ```bash
-# 安装
+# Install
 pip install git-lfs
 
-# 启用
+# Enable
 git lfs install
 
-# 克隆大仓库（自动下载 LFS 文件）
+# Clone large repo (auto download LFS files)
 git clone https://huggingface.co/username/repo
 
-# 手动拉取
+# Manual pull
 git lfs pull
 ```
 
 ---
 
-## 文件传输
+## File Transfer
 
 ### rsync
 
 ```bash
-# 同步到远程
+# Sync to remote
 rsync -avz --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' ./ user@server:/path/
 
-# 同步到本地
+# Sync to local
 rsync -avz user@server:/path/outputs/ ./outputs/
 
-# 带删除（远程有本地没有的文件）
+# With delete (files remote has but local doesn't)
 rsync -avz --delete ./ user@server:/path/
 ```
 
 ### scp
 
 ```bash
-# 上传
+# Upload
 scp file.txt user@server:/path/
 scp -r folder/ user@server:/path/
 
-# 下载
+# Download
 scp user@server:/path/file.txt ./
 scp -r user@server:/path/folder/ ./
 ```
 
 ---
 
-## 远程服务器操作
+## Remote Server Operations
 
 ```bash
-# SSH 连接
+# SSH connection
 ssh user@server
 ssh -i ~/.ssh/key.pem user@server
 
-# 执行命令
+# Execute command
 ssh user@server "cd /path && python train.py"
 
-# 端口转发
+# Port forwarding
 ssh -L 8888:localhost:8888 user@server
 ```
 
 ---
 
-## 后台运行
+## Background Execution
 
 ### tmux
 
 ```bash
-# 创建会话
+# Create session
 tmux new -s experiment
 
-# 列出会话
+# List sessions
 tmux ls
 
-# 分离会话
-# Ctrl+B, 然后按 D
+# Detach session
+# Ctrl+B, then press D
 
-# 重新连接
+# Reattach
 tmux attach -t experiment
 
-# 杀死会话
+# Kill session
 tmux kill-session -t experiment
 
-# 在会话中运行命令
+# Run command in session
 tmux send-keys -t experiment "python train.py" Enter
 ```
 
 ### nohup / screen
 
 ```bash
-# nohup 后台运行
-nohup python train.py > output.log 2>&1 &
+# nohup background run
 nohup python train.py > output.log 2>&1 &
 
 # screen
 screen -S experiment
 python train.py
-# Ctrl+A, 然后按 D 退出
+# Ctrl+A, then press D to exit
 
 screen -ls
 screen -r experiment
@@ -258,105 +257,105 @@ screen -r experiment
 
 ---
 
-## 进程管理
+## Process Management
 
 ```bash
-# 查看进程
+# View processes
 ps aux | grep python
 ps -ef | grep python
 
-# 杀死进程
+# Kill process
 kill <PID>
-kill -9 <PID>  # 强制杀死
+kill -9 <PID>  # Force kill
 
-# 按名称杀死
+# Kill by name
 pkill -9 python
 pkill -9 -f "train.py"
 
-# 查看 GPU 使用
+# Check GPU usage
 nvidia-smi
-watch -n 1 nvidia-smi  # 实时监控
+watch -n 1 nvidia-smi  # Real-time monitoring
 
-# 查看端口占用
+# Check port usage
 lsof -i :8888
 netstat -tulpn | grep 8888
 ```
 
 ---
 
-## 日志查看
+## Log Viewing
 
 ```bash
-# 查看日志
+# View log
 tail -f log.txt
 tail -n 100 log.txt
 cat log.txt
 
-# 搜索关键词
+# Search keywords
 grep "error" log.txt
 grep -n "loss" log.txt
 
-# 实时监控
+# Real-time monitoring
 watch -n 1 "tail -n 5 log.txt"
 ```
 
 ---
 
-## 数据处理
+## Data Processing
 
 ```bash
-# 解压
+# Decompress
 tar -xvf file.tar
 tar -xzvf file.tar.gz
 tar -xjvf file.tar.bz2
 unzip file.zip
 
-# 查看文件
+# View file
 head -n 10 file.txt
-wc -l file.txt  # 行数
+wc -l file.txt  # Line count
 
-# 转换格式
-dos2unix file.txt  # Windows 转 Unix
-unix2dos file.txt  # Unix 转 Windows
+# Convert format
+dos2unix file.txt  # Windows to Unix
+unix2dos file.txt  # Unix to Windows
 ```
 
 ---
 
-## Python 调试
+## Python Debugging
 
 ```bash
-# 简单测试 import
+# Simple import test
 python -c "import torch; print(torch.__version__)"
 
-# 查看安装路径
+# Check install path
 python -c "import torch; print(torch.__file__)"
 
-# 性能分析
+# Performance profiling
 python -m cProfile train.py
 
-# 内存分析
+# Memory profiling
 pip install memory_profiler
 python -m memory_profiler train.py
 
-# 交互式调试
+# Interactive debug
 python -i train.py
 >>> import pdb; pdb.pm()
 ```
 
 ---
 
-## Conda 常用别名（添加到 ~/.bashrc）
+## Conda Aliases (add to ~/.bashrc)
 
 ```bash
-# 快速激活常用环境
+# Quick activate common environments
 alias ac='conda activate'
 alias dac='conda deactivate'
 alias cl='conda env list'
 
-# 快速安装
+# Quick install
 alias pipi='pip install -i https://pypi.tuna.tsinghua.edu.cn/simple'
 
-# Git 常用
+# Git common commands
 alias gs='git status'
 alias ga='git add'
 alias gc='git commit -m'
@@ -367,30 +366,30 @@ alias gco='git checkout'
 
 ---
 
-## 快捷查看命令
+## Quick Check Commands
 
 ```bash
-# 系统信息
+# System info
 uname -a
 cat /etc/os-release
 
-# Python 版本
+# Python version
 python --version
 python3 --version
 
-# pip 版本
+# pip version
 pip --version
 pip -V
 
-# CUDA 版本
+# CUDA version
 nvcc --version
 nvidia-smi
 
-# GPU 信息
+# GPU info
 nvidia-smi -L
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
 
-# 包版本
+# Package version
 pip show <package>
 pip list | grep <package>
 ```

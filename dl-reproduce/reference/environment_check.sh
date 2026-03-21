@@ -1,39 +1,39 @@
 #!/bin/bash
 # ============================================
-# 环境检测脚本 - 深度学习项目复现
-# 用法: bash reference/environment_check.sh
+# Environment Check Script - Deep Learning Project Reproduction
+# Usage: bash reference/environment_check.sh
 # ============================================
 
 echo "=========================================="
-echo "       深度学习环境检测报告"
+echo "       Deep Learning Environment Check Report"
 echo "=========================================="
 echo ""
 
-# 1. 系统信息
-echo "📦 系统信息"
+# 1. System Information
+echo "System Information"
 echo "-------------------------------------------"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    echo "系统: $NAME $VERSION"
+    echo "OS: $NAME $VERSION"
 fi
-echo "内核: $(uname -r)"
-echo "架构: $(uname -m)"
+echo "Kernel: $(uname -r)"
+echo "Architecture: $(uname -m)"
 echo ""
 
-# 2. Python 环境
-echo "🐍 Python 环境"
+# 2. Python Environment
+echo "Python Environment"
 echo "-------------------------------------------"
 if command -v python &> /dev/null; then
     PYTHON_VERSION=$(python --version 2>&1)
     echo "Python: $PYTHON_VERSION"
-    echo "路径: $(which python)"
+    echo "Path: $(which python)"
 else
-    echo "❌ Python 未安装"
+    echo "Python not found"
 fi
 echo ""
 
-# 3. 包管理器
-echo "📦 包管理器"
+# 3. Package Manager
+echo "Package Manager"
 echo "-------------------------------------------"
 if command -v pip &> /dev/null; then
     echo "pip: $(pip --version)"
@@ -50,30 +50,30 @@ if command -v uv &> /dev/null; then
 fi
 echo ""
 
-# 4. CUDA 环境
-echo "🔧 CUDA 环境"
+# 4. CUDA Environment
+echo "CUDA Environment"
 echo "-------------------------------------------"
 if command -v nvcc &> /dev/null; then
     NVCC_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([^,]*\),.*/\1/')
     echo "nvcc: $NVCC_VERSION"
 else
-    echo "⚠️ nvcc 未安装或未在 PATH 中"
+    echo "nvcc not found or not in PATH"
 fi
 
 if command -v nvidia-smi &> /dev/null; then
     echo ""
-    echo "GPU 信息:"
+    echo "GPU Information:"
     nvidia-smi --query-gpu=name,memory.total,memory.free,driver_version,cuda_version --format=csv
 else
-    echo "⚠️ nvidia-smi 未找到（可能无 NVIDIA GPU 或驱动未安装）"
+    echo "nvidia-smi not found (may not have NVIDIA GPU or driver installed)"
 fi
 echo ""
 
-# 5. 关键 Python 包
-echo "📚 已安装的关键包"
+# 5. Key Python Packages
+echo "Installed Key Packages"
 echo "-------------------------------------------"
 check_package() {
-    python -c "import $1; print('$1: ' + $1.__version__)" 2>/dev/null || echo "$1: ❌ 未安装"
+    python -c "import $1; print('$1: ' + $1.__version__)" 2>/dev/null || echo "$1: Not installed"
 }
 
 check_package torch
@@ -85,14 +85,14 @@ check_package matplotlib
 check_package tqdm
 echo ""
 
-# 6. 网络检测
-echo "🌐 网络环境检测"
+# 6. Network Check
+echo "Network Environment Check"
 echo "-------------------------------------------"
 check_network() {
     if ping -c 1 -W 3 $1 >/dev/null 2>&1; then
-        echo "✅ $1: 可连接"
+        echo "$1: Connection OK"
     else
-        echo "❌ $1: 无法连接"
+        echo "$1: Cannot connect"
     fi
 }
 
@@ -101,28 +101,28 @@ check_network huggingface.co
 check_network github.com
 echo ""
 
-# 7. 建议
-echo "💡 建议"
+# 7. Recommendations
+echo "Recommendations"
 echo "-------------------------------------------"
 
-# CUDA 检查
+# CUDA check
 if ! command -v nvidia-smi &> /dev/null; then
-    echo "• 未检测到 NVIDIA GPU 或驱动，可能需要 CPU 模式运行"
+    echo "- No NVIDIA GPU or driver detected, may need to run in CPU mode"
 fi
 
-# Python 版本建议
+# Python version recommendation
 PYTHON_MAJOR=$(python -c 'import sys; print(sys.version_info.major)' 2>/dev/null)
 PYTHON_MINOR=$(python -c 'import sys; print(sys.version_info.minor)' 2>/dev/null)
 if [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -gt 11 ]; then
-    echo "• Python 3.${PYTHON_MINOR} 版本较新，部分旧项目可能不兼容"
+    echo "- Python 3.$PYTHON_MINOR is relatively new, some older projects may be incompatible"
 fi
 
-# 虚拟环境检查
+# Virtual environment check
 if [ -z "$VIRTUAL_ENV" ] && [ -z "$CONDA_DEFAULT_ENV" ]; then
-    echo "• 建议使用虚拟环境（conda 或 venv）进行项目隔离"
+    echo "- Recommend using virtual environment (conda or venv) for project isolation"
 fi
 
 echo ""
 echo "=========================================="
-echo "          检测完成"
+echo "          Check Complete"
 echo "=========================================="

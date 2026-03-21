@@ -1,19 +1,19 @@
-# 常见错误速查表
+# Common Errors Quick Reference
 
-> 深度学习项目复现过程中常见的错误及解决方案
+> Common errors and solutions for deep learning project reproduction
 
 ---
 
-## 环境依赖错误
+## Environment Dependency Errors
 
 ### ModuleNotFoundError: No module named 'xxx'
 
-**原因**：缺少 Python 包
+**Cause**: Missing Python package
 
-**解决方案**：
+**Solution**:
 ```bash
 pip install <package_name>
-# 或指定版本
+# Or specify version
 pip install <package_name>==x.x.x
 ```
 
@@ -21,17 +21,17 @@ pip install <package_name>==x.x.x
 
 ### ImportError: cannot import name 'xxx' from 'typing'
 
-**原因**：Python 或包的版本不兼容
+**Cause**: Python or package version incompatibility
 
-**解决方案**：
+**Solution**:
 ```bash
-# 方案1：升级/降级相关包
+# Option 1: Upgrade/downgrade related packages
 pip install --upgrade <package>
 pip install <package>==<version>
 
-# 方案2：检查 Python 版本
+# Option 2: Check Python version
 python --version
-# 如果 Python 版本过高，考虑使用 conda 创建较低版本的环境
+# If Python version is too new, consider using conda to create an older environment
 conda create -n env_name python=3.10
 ```
 
@@ -39,9 +39,9 @@ conda create -n env_name python=3.10
 
 ### pkg_resources.DistributionNotFound
 
-**原因**：包版本不匹配或损坏
+**Cause**: Package version mismatch or corruption
 
-**解决方案**：
+**Solution**:
 ```bash
 pip install --upgrade setuptools wheel
 pip install --upgrade <package>
@@ -49,59 +49,59 @@ pip install --upgrade <package>
 
 ---
 
-## CUDA/GPU 错误
+## CUDA/GPU Errors
 
 ### RuntimeError: CUDA out of memory
 
-**原因**：GPU 显存不足
+**Cause**: GPU VRAM insufficient
 
-**解决方案**：
+**Solution**:
 ```bash
-# 1. 减小 batch size
+# 1. Reduce batch size
 python train.py --batch_size 4
 
-# 2. 启用梯度累积
+# 2. Enable gradient accumulation
 python train.py --gradient_accumulation_steps 4
 
-# 3. 减少模型精度（如果支持）
+# 3. Reduce model precision (if supported)
 python train.py --precision fp16
 
-# 4. 启用混合精度
+# 4. Enable mixed precision
 python train.py --use_amp
 
-# 5. 使用 torch.cuda.empty_cache() 清理缓存
+# 5. Clear cache with torch.cuda.empty_cache()
 ```
 
 ---
 
 ### RuntimeError: CUDA error: no kernel image is available for execution
 
-**原因**：PyTorch CUDA 版本与 GPU 不匹配
+**Cause**: PyTorch CUDA version incompatible with GPU
 
-**解决方案**：
+**Solution**:
 ```bash
-# 检查 CUDA 版本
+# Check CUDA version
 nvcc --version
 nvidia-smi
 
-# 重新安装匹配 CUDA 版本的 PyTorch
+# Reinstall PyTorch matching CUDA version
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-# 或 cu117, cu116, cu115 等
+# Or cu117, cu116, cu115, etc.
 ```
 
 ---
 
 ### AssertionError: Torch not compiled with CUDA enabled
 
-**原因**：PyTorch 未启用 CUDA 支持
+**Cause**: PyTorch compiled without CUDA support
 
-**解决方案**：
+**Solution**:
 ```bash
-# 确认 PyTorch 版本
+# Check PyTorch version
 python -c "import torch; print(torch.__version__)"
 python -c "import torch; print(torch.cuda.is_available())"
 
-# 重新安装 CUDA 版本
+# Reinstall CUDA version
 pip uninstall torch
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ```
@@ -110,34 +110,34 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 
 ### ValueError: Tensor for 'y' has dtype Float but expected IntType
 
-**原因**：标签数据类型不匹配
+**Cause**: Label data type mismatch
 
-**解决方案**：
+**Solution**:
 ```bash
-# 检查数据集标签类型
-# 转换标签类型
+# Check dataset label type
+# Convert label type
 labels = labels.long()  # for CrossEntropyLoss
-# 或
+# Or
 labels = labels.float()  # for BCE Loss
 ```
 
 ---
 
-## 网络/下载错误
+## Network/Download Errors
 
 ### SSL: CERTIFICATE_VERIFY_FAILED
 
-**原因**：SSL 证书验证失败（通常是网络环境问题）
+**Cause**: SSL certificate verification failed (usually network environment issue)
 
-**解决方案**：
+**Solution**:
 ```bash
-# 方案1：临时跳过 SSL 验证（不推荐用于敏感操作）
+# Option 1: Temporarily skip SSL verification (not recommended for sensitive operations)
 pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org <package>
 
-# 方案2：换用国内镜像
+# Option 2: Use mirror
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple <package>
 
-# 方案3：更新证书
+# Option 3: Update certificates
 pip install --upgrade certifi
 /Applications/Python\ 3.x/Install\ Certificates.command  # macOS
 ```
@@ -146,126 +146,125 @@ pip install --upgrade certifi
 
 ### HTTPError 404: Not Found
 
-**原因**：下载链接失效或包名错误
+**Cause**: Download link expired or package name error
 
-**解决方案**：
+**Solution**:
 ```bash
-# 检查包名
-pip search <package>  # 已废弃
+# Check package name
 pip index versions <package>
 
-# 使用正确的包名
+# Use correct package name
 pip install <correct_package_name>
 
-# 如果是模型/数据链接失效，尝试：
-# 1. HuggingFace 镜像
-# 2. 手动下载
-# 3. 查找替代来源
+# If model/data link expired, try:
+# 1. HuggingFace mirror
+# 2. Manual download
+# 3. Find alternative source
 ```
 
 ---
 
 ### git clone failed / Connection refused
 
-**原因**：Git 网络问题或代理配置
+**Cause**: Git network issues or proxy configuration
 
-**解决方案**：
+**Solution**:
 ```bash
-# 方案1：换用 https 协议
+# Option 1: Switch to https protocol
 git config --global url."https://github.com/".insteadOf "git@github.com:"
 
-# 方案2：配置代理
+# Option 2: Configure proxy
 git config --global http.proxy http://127.0.0.1:7890
 git config --global https.proxy https://127.0.0.1:7890
 
-# 方案3：使用镜像
+# Option 3: Use mirror
 git clone https://mirror.ghproxy.com/https://github.com/username/repo
 
-# 方案4：手动下载 zip
+# Option 4: Manual download zip
 ```
 
 ---
 
 ### OSError: [Errno 28] No space left on device
 
-**原因**：磁盘空间不足
+**Cause**: Disk space full
 
-**解决方案**：
+**Solution**:
 ```bash
-# 查看磁盘使用
+# Check disk usage
 df -h
 
-# 清理缓存
+# Clear cache
 pip cache purge
 rm -rf ~/.cache/pip
 rm -rf ~/.*cache
 
-# 清理 Docker
+# Clean Docker
 docker system prune -a
 
-# 清理临时文件
+# Clean temp files
 rm -rf /tmp/*
 ```
 
 ---
 
-## 权限错误
+## Permission Errors
 
 ### PermissionError: [Errno 13] Permission denied
 
-**原因**：无写入权限
+**Cause**: No write permission
 
-**解决方案**：
+**Solution**:
 ```bash
-# 方案1：使用虚拟环境（推荐）
+# Option 1: Use virtual environment (recommended)
 python -m venv venv
 source venv/bin/activate
 
-# 方案2：使用 --user 安装
+# Option 2: Install with --user
 pip install --user <package>
 
-# 方案3：检查目录权限
+# Option 3: Check directory permissions
 ls -la <directory>
-# sudo 仅在必要时使用
+# Use sudo only when necessary
 ```
 
 ---
 
 ### condaEnvironmentChangeError
 
-**原因**：Conda 环境变更冲突
+**Cause**: Conda environment change conflict
 
-**解决方案**：
+**Solution**:
 ```bash
-# 方案1：更新 conda
+# Option 1: Update conda
 conda update conda
 
-# 方案2：创建新环境
+# Option 2: Create new environment
 conda create -n new_env python=3.x
 conda activate new_env
 
-# 方案3：清理缓存
+# Option 3: Clear cache
 conda clean -a
 ```
 
 ---
 
-## 数据处理错误
+## Data Processing Errors
 
 ### FileNotFoundError: [Errno 2] No such file or directory
 
-**原因**：文件路径错误
+**Cause**: File path error
 
-**解决方案**：
+**Solution**:
 ```bash
-# 检查文件是否存在
+# Check if file exists
 ls -la <path>
 
-# 使用绝对路径
+# Use absolute path
 import os
 os.path.abspath("relative/path")
 
-# 检查当前目录
+# Check current directory
 import os
 print(os.getcwd())
 ```
@@ -274,35 +273,35 @@ print(os.getcwd())
 
 ### ValueError: too many values to unpack (expected 2)
 
-**原因**：数据格式与代码预期不符
+**Cause**: Data format doesn't match code expectation
 
-**解决方案**：
+**Solution**:
 ```bash
-# 检查数据格式
+# Check data format
 head -n 5 <data_file>
 
-# 查看代码预期的数据格式
-# 通常是：label,text 或 text,label 或 JSON 格式
+# Check code expected data format
+# Usually: label,text or text,label or JSON format
 ```
 
 ---
 
-## 并行/多GPU 错误
+## Parallel/Multi-GPU Errors
 
 ### RuntimeError: rank 0 FAILED
 
-**原因**：分布式训练失败
+**Cause**: Distributed training failed
 
-**解决方案**：
+**Solution**:
 ```bash
-# 方案1：检查 NCCL
+# Option 1: Check NCCL
 python -c "import torch; print(torch.cuda.nccl.version())"
 
-# 方案2：设置环境变量
+# Option 2: Set environment variables
 export NCCL_DEBUG=INFO
 export NCCL_IB_DISABLE=0
 
-# 方案3：使用单 GPU 测试
+# Option 3: Test with single GPU
 python train.py --nproc_per_node 1
 ```
 
@@ -310,25 +309,25 @@ python train.py --nproc_per_node 1
 
 ### os._exit(-1) in <module> + AttributeError: 'NoneType' object has no attribute 'close'
 
-**原因**：Dataloader worker 崩溃
+**Cause**: Dataloader worker crashed
 
-**解决方案**：
+**Solution**:
 ```bash
-# 减少 num_workers
+# Reduce num_workers
 python train.py --num_workers 0
 
-# 或检查数据加载代码中的错误
+# Or check errors in data loading code
 ```
 
 ---
 
-## 其他常见错误
+## Other Common Errors
 
-### KeyboardInterrupt 残留在并行进程
+### KeyboardInterrupt stuck in parallel processes
 
-**解决方案**：
+**Solution**:
 ```bash
-# 杀死所有 Python 进程
+# Kill all Python processes
 pkill -9 python
 pkill -9 torchrun
 ```
@@ -337,9 +336,9 @@ pkill -9 torchrun
 
 ### OMP: Error #15: Initializing libiomp5.dylib, but found initial error
 
-**原因**：OpenMP 库冲突
+**Cause**: OpenMP library conflict
 
-**解决方案**：
+**Solution**:
 ```bash
 # macOS
 export KMP_DUPLICATE_LIB_OK=TRUE
@@ -350,32 +349,32 @@ export OMP_NUM_THREADS=1
 
 ---
 
-## 快速诊断命令
+## Quick Diagnostic Commands
 
 ```bash
-# 检查 Python 环境
+# Check Python environment
 python -c "import sys; print(sys.version)"
 python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 
-# 检查依赖
+# Check dependencies
 pip list | grep -E "torch|numpy|transformers"
 
-# 检查 GPU
+# Check GPU
 nvidia-smi
 
-# 检查内存
+# Check memory
 free -h
 
-# 检查磁盘
+# Check disk
 df -h
 ```
 
 ---
 
-## 获取帮助
+## Getting Help
 
-如果遇到未列出的错误：
-1. 复制完整错误信息
-2. 搜索错误关键词
-3. 查阅项目 README / Issues
-4. 在 GitHub Issues 中搜索类似问题
+If you encounter errors not listed:
+1. Copy full error message
+2. Search error keywords
+3. Check project README / Issues
+4. Search similar issues in GitHub Issues

@@ -1,93 +1,93 @@
-# 实验记录模板
+# Experiment Log Template
 
-> 每次实验前填写此模板，便于复现和对比
+> Fill out this template before each experiment for reproducibility and comparison
 
 ---
 
-## 实验信息
+## Experiment Information
 
-| 字段 | 内容 |
+| Field | Content |
 |------|------|
-| **实验名称** | |
-| **实验日期** | |
-| **实验者** | |
-| **项目仓库** | |
+| **Experiment Name** | |
+| **Date** | |
+| **Experimenter** | |
+| **Project Repository** | |
 
 ---
 
-## 实验目标
+## Experiment Objectives
 
-### 目的
-> 简要描述本次实验的目标
+### Purpose
+> Briefly describe the goal of this experiment
 
-- [ ] 复现论文 baseline 结果
-- [ ] 验证某方法的有效性
-- [ ] 超参数搜索
-- [ ] 其他: _______
+- [ ] Reproduce paper baseline results
+- [ ] Verify effectiveness of a method
+- [ ] Hyperparameter search
+- [ ] Other: _______
 
-### 论文/项目信息
-- 论文标题: 
-- arXiv ID: 
-- GitHub 仓库: 
+### Paper/Project Information
+- Paper Title:
+- arXiv ID:
+- GitHub Repository:
 
 ---
 
-## 环境配置
+## Environment Configuration
 
-### 硬件环境
+### Hardware
 
-| 项目 | 配置 |
+| Item | Configuration |
 |------|------|
-| GPU 型号 | |
-| GPU 数量 | |
-| 显存总量 | |
-| 内存 (RAM) | |
-| 系统 | |
+| GPU Model | |
+| GPU Count | |
+| VRAM Total | |
+| Memory (RAM) | |
+| System | |
 
-### 软件环境
+### Software
 
-| 软件 | 版本 |
+| Software | Version |
 |------|------|
 | Python | |
 | PyTorch | |
 | CUDA | |
 | cuDNN | |
-| 关键依赖 | |
+| Key Dependencies | |
 
-### 环境创建命令
+### Environment Creation Commands
 
 ```bash
-# conda 环境
+# conda environment
 conda create -n <env_name> python=3.x
 conda activate <env_name>
 pip install <packages>
 
-# 或导出环境
+# Or export environment
 conda env export > environment.yml
 ```
 
 ---
 
-## 数据集
+## Dataset
 
-### 数据集信息
+### Dataset Information
 
-| 项目 | 内容 |
+| Item | Content |
 |------|------|
-| 数据集名称 | |
-| 数据来源 | |
-| 数据大小 | |
-| 训练集数量 | |
-| 验证集数量 | |
-| 测试集数量 | |
+| Dataset Name | |
+| Data Source | |
+| Data Size | |
+| Training Set Size | |
+| Validation Set Size | |
+| Test Set Size | |
 
-### 数据处理
-> 描述数据预处理步骤
+### Data Processing
+> Describe data preprocessing steps
 
 ```
 ```
 
-### 数据路径
+### Data Paths
 ```
 /path/to/data/
 ├── train/
@@ -97,71 +97,71 @@ conda env export > environment.yml
 
 ---
 
-## 实验配置
+## Experiment Configuration
 
-### 模型配置
+### Model Configuration
 
-| 参数 | 值 |
+| Parameter | Value |
 |------|---|
-| 模型架构 | |
-| 预训练模型 | |
-| 模型大小 | |
-| 层数 | |
-| 隐藏维度 | |
-| 注意力头数 | |
+| Model Architecture | |
+| Pretrained Model | |
+| Model Size | |
+| Number of Layers | |
+| Hidden Dimension | |
+| Attention Heads | |
 
-### 训练配置
+### Training Configuration
 
-| 参数 | 值 |
+| Parameter | Value |
 |------|---|
 | Batch Size | |
 | Learning Rate | |
 | Optimizer | |
 | Scheduler | |
 | Epochs | |
-| 梯度累积步数 | |
-| 混合精度 | |
-| 随机种子 | |
+| Gradient Accumulation Steps | |
+| Mixed Precision | |
+| Random Seed | |
 
-### 其他配置
+### Other Configuration
 ```
 ```
 
 ---
 
-## 实验结果
+## Experiment Results
 
-### 关键指标
+### Key Metrics
 
-| 指标 | 论文报告值 | 本实验结果 | 差距 |
+| Metric | Paper Reported | This Experiment | Gap |
 |------|-----------|-----------|------|
 | | | | |
 | | | | |
 | | | | |
 
-### 训练曲线
+### Training Curves
 
-> 插入训练曲线图片
+> Insert training curve plots
 
-![训练曲线](figures/training_curve.png)
+![Training Curves](figures/training_curve.png)
 
-### 运行时间
+### Runtime
 
-| 阶段 | 时间 |
+| Phase | Time |
 |------|------|
-| 数据预处理 | |
-| 单 epoch 训练 | |
-| 总训练时间 | |
-| 推理时间 | |
+| Data Preprocessing | |
+| Single Epoch Training | |
+| Total Training Time | |
+| Inference Time | |
 
 ---
 
-## 实验日志
+## Experiment Log
 
-### 命令
+### Command
 
 ```bash
-# 训练命令
+# Training command
 python train.py \
     --config config.yaml \
     --exp_name exp_001 \
@@ -169,7 +169,7 @@ python train.py \
     --learning_rate 5e-5
 ```
 
-### 关键输出
+### Key Output
 
 ```
 [2024-01-01 10:00:00] Starting training...
@@ -179,70 +179,70 @@ python train.py \
 
 ---
 
-## 问题与解决
+## Problems and Solutions
 
-### 遇到的问题
+### Problems Encountered
 
-| 问题 | 描述 | 严重程度 |
+| Problem | Description | Severity |
 |------|------|----------|
-| 1 | | 高/中/低 |
-| 2 | | 高/中/低 |
+| 1 | | High/Medium/Low |
+| 2 | | High/Medium/Low |
 
-### 解决方案
+### Solutions
 
-**问题 1**: 
+**Problem 1**:
 ```
-解决思路: 
-尝试方案: 
-最终解决: 
+Resolution approach:
+Attempted solutions:
+Final fix:
 ```
 
 ---
 
-## 代码修改
+## Code Modifications
 
-### 修改的文件
+### Modified Files
 
-| 文件 | 修改内容 |
+| File | Modification |
 |------|----------|
 | `train.py` | |
 | `model.py` | |
 | `data.py` | |
 
-### 修改原因
-> 为什么要做这些修改
+### Reason for Modifications
+> Why these modifications were made
 
 ```
 ```
 
 ---
 
-## 下一步计划
+## Next Steps
 
-- [ ] 尝试不同的学习率
-- [ ] 增加训练数据
-- [ ] 改进模型架构
-- [ ] 对比其他方法
-- [ ] 其他: _______
+- [ ] Try different learning rates
+- [ ] Increase training data
+- [ ] Improve model architecture
+- [ ] Compare with other methods
+- [ ] Other: _______
 
 ---
 
-## 备注
+## Notes
 
-> 其他需要记录的内容
+> Other content that needs to be recorded
 
 ```
 ```
 
 ---
 
-## 快速链接
+## Quick Links
 
-- 训练日志: `logs/exp_001.log`
-- 模型权重: `checkpoints/exp_001/`
-- 输出结果: `outputs/exp_001/`
-- Git 提交: `commit: xxxxxxx`
+- Training Logs: `logs/exp_001.log`
+- Model Checkpoints: `checkpoints/exp_001/`
+- Output Results: `outputs/exp_001/`
+- Git Commit: `commit: xxxxxxx`
 
 ---
 
-*模板使用方法：将此文件复制到实验目录，重命名为 `exp_001.md`，按实际情况填写。*
+*Template usage: Copy this file to the experiment directory, rename to `exp_001.md`, and fill out based on actual situation.*

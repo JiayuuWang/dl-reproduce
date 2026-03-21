@@ -1,34 +1,34 @@
 #!/bin/bash
 # ============================================
-# 环境配置模板脚本
-# 用法: bash scripts/setup_env.sh [project_name]
+# Environment Setup Template Script
+# Usage: bash scripts/setup_env.sh [project_name]
 # ============================================
 
-# 默认项目名
+# Default project name
 PROJECT_NAME=${1:-my_project}
 
 echo "=========================================="
-echo "     深度学习环境配置脚本"
+echo "     Deep Learning Environment Setup Script"
 echo "=========================================="
-echo "项目名: $PROJECT_NAME"
+echo "Project Name: $PROJECT_NAME"
 echo ""
 
 # ============================================
-# 1. 检测当前环境
+# 1. Detect Current Environment
 # ============================================
-echo "📋 Step 1: 检测当前环境..."
+echo "Step 1: Detecting current environment..."
 echo "-------------------------------------------"
 
-# Python 版本
+# Python version
 PYTHON_VERSION=$(python --version 2>&1 | grep -oP '\d+\.\d+')
 echo "Python: $PYTHON_VERSION"
 
-# CUDA 版本
+# CUDA version
 if command -v nvcc &> /dev/null; then
     CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([^,]*\),.*/\1/')
     echo "CUDA: $CUDA_VERSION"
 else
-    echo "CUDA: 未检测到"
+    echo "CUDA: Not detected"
 fi
 
 # GPU
@@ -37,75 +37,75 @@ if command -v nvidia-smi &> /dev/null; then
     GPU_MEM=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader)
     echo "GPU: $GPU_NAME ($GPU_MEM)"
 else
-    echo "GPU: 未检测到"
+    echo "GPU: Not detected"
 fi
 
 echo ""
 
 # ============================================
-# 2. 检测网络环境
+# 2. Detect Network Environment
 # ============================================
-echo "🌐 Step 2: 检测网络环境..."
+echo "Step 2: Detecting network environment..."
 echo "-------------------------------------------"
 
-# 测试 pypi 连接
+# Test pypi connection
 if ping -c 1 -W 2 pypi.org >/dev/null 2>&1; then
-    echo "国际网络: 正常"
+    echo "International network: OK"
     USE_MIRROR=false
 else
-    echo "国际网络: 不稳定，使用国内镜像"
+    echo "International network: Unstable, using domestic mirror"
     USE_MIRROR=true
 fi
 
-# 设置镜像
+# Set mirror
 if [ "$USE_MIRROR" = true ]; then
     PIP_MIRROR="https://pypi.tuna.tsinghua.edu.cn/simple"
-    echo "pip 镜像: 清华镜像"
+    echo "pip mirror: Tsinghua mirror"
 fi
 echo ""
 
 # ============================================
-# 3. 创建虚拟环境
+# 3. Create Virtual Environment
 # ============================================
-echo "🔧 Step 3: 创建虚拟环境..."
+echo "Step 3: Creating virtual environment..."
 echo "-------------------------------------------"
 
-# 选择环境管理器
+# Choose environment manager
 if command -v conda &> /dev/null; then
-    echo "使用 conda 创建环境..."
+    echo "Using conda to create environment..."
     conda create -n "$PROJECT_NAME" python=3.10 -y
     conda activate "$PROJECT_NAME"
     ENV_CREATED=true
 elif command -v python &> /dev/null; then
-    echo "使用 venv 创建环境..."
+    echo "Using venv to create environment..."
     python -m venv venv
     source venv/bin/activate
     ENV_CREATED=true
 else
-    echo "❌ 未找到 conda 或 python"
+    echo "Error: conda or python not found"
     exit 1
 fi
 
 echo ""
 
 # ============================================
-# 4. 安装基础依赖
+# 4. Install Basic Dependencies
 # ============================================
-echo "📦 Step 4: 安装基础依赖..."
+echo "Step 4: Installing basic dependencies..."
 echo "-------------------------------------------"
 
-# 设置 pip 参数
+# Set pip arguments
 if [ "$USE_MIRROR" = true ]; then
     PIP_EXTRA="-i $PIP_MIRROR"
 fi
 
-# 升级 pip
+# Upgrade pip
 pip install --upgrade pip $PIP_EXTRA
 
-# 安装 PyTorch
-echo "安装 PyTorch..."
+# Install PyTorch
+echo "Installing PyTorch..."
 if command -v nvcc &> /dev/null; then
-    # CUDA 版本
+    # CUDA version
     CUDA_MAJOR=$(nvcc --version | grep "release" | sed 's/.*release \([^,]*\),.*/\1/' | cut -d. -f1)
     if [ "$CUDA_MAJOR" = "11" ]; then
         pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 $PIP_EXTRA
@@ -116,41 +116,41 @@ else
     pip install torch torchvision torchaudio $PIP_EXTRA
 fi
 
-# 安装基础库
-echo "安装基础库..."
+# Install basic libraries
+echo "Installing basic libraries..."
 pip install numpy pandas scikit-learn matplotlib seaborn tqdm $PIP_EXTRA
 
-# 安装深度学习相关
-echo "安装深度学习库..."
+# Install deep learning related
+echo "Installing deep learning libraries..."
 pip install transformers datasets accelerate $PIP_EXTRA
 
 echo ""
 
 # ============================================
-# 5. 安装项目依赖
+# 5. Install Project Dependencies
 # ============================================
-echo "📋 Step 5: 安装项目依赖..."
+echo "Step 5: Installing project dependencies..."
 echo "-------------------------------------------"
 
 if [ -f "requirements.txt" ]; then
-    echo "找到 requirements.txt，安装项目依赖..."
+    echo "Found requirements.txt, installing project dependencies..."
     pip install -r requirements.txt $PIP_EXTRA
 elif [ -f "setup.py" ]; then
-    echo "找到 setup.py，安装项目..."
+    echo "Found setup.py, installing project..."
     pip install -e . $PIP_EXTRA
 elif [ -f "pyproject.toml" ]; then
-    echo "找到 pyproject.toml，安装项目..."
+    echo "Found pyproject.toml, installing project..."
     pip install -e . $PIP_EXTRA
 else
-    echo "⚠️ 未找到项目依赖文件"
+    echo "Warning: No project dependency file found"
 fi
 
 echo ""
 
 # ============================================
-# 6. 验证环境
+# 6. Verify Environment
 # ============================================
-echo "✅ Step 6: 验证环境..."
+echo "Step 6: Verifying environment..."
 echo "-------------------------------------------"
 
 python -c "
@@ -168,19 +168,19 @@ python -c "import transformers; print(f'transformers: {transformers.__version__}
 echo ""
 
 # ============================================
-# 完成
+# Complete
 # ============================================
 echo "=========================================="
-echo "✅ 环境配置完成！"
+echo "Environment setup complete!"
 echo "=========================================="
 echo ""
-echo "激活环境命令:"
+echo "Activate environment command:"
 if command -v conda &> /dev/null; then
     echo "  conda activate $PROJECT_NAME"
 else
     echo "  source venv/bin/activate"
 fi
 echo ""
-echo "安装额外包:"
+echo "Install additional packages:"
 echo "  pip install <package> $PIP_EXTRA"
 echo ""
