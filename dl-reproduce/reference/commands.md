@@ -1,395 +1,209 @@
-# Common Commands Reference
+# DL-Specific Commands Reference
 
-> Commonly used commands for deep learning project reproduction
+> Only commands that encode non-obvious deep learning knowledge. Generic git/pip/conda commands are omitted — the agent already knows those.
 
 ---
 
-## Environment Management
-
-### Conda
+## PyTorch Install URLs (Critical — Wrong URL = CPU-only torch)
 
 ```bash
-# Create environment
-conda create -n <env_name> python=3.10
-conda create -n <env_name> python=3.10 pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+# CUDA 11.8
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-# Activate environment
-conda activate <env_name>
-source ~/anaconda3/etc/profile.d/conda.sh && conda activate <env_name>  # Some Linux
+# CUDA 12.1
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# Deactivate environment
-conda deactivate
+# CUDA 12.4
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-# List environments
-conda env list
+# CUDA 12.6+
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
 
-# Remove environment
-conda env remove -n <env_name>
+# CPU only
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-# Export environment
-conda env export > environment.yml
-conda env export --from-history > environment_simple.yml
+# Specific version + CUDA (pin both)
+pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 --index-url https://download.pytorch.org/whl/cu124
 
-# Create from yaml
-conda env create -f environment.yml
-```
-
-### pip / venv
-
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate (Linux/Mac)
-source venv/bin/activate
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-pip install -e .  # Editable mode
-
-# Export dependencies
-pip freeze > requirements.txt
-
-# Upgrade package
-pip install --upgrade <package>
-pip install -U <package>
+# Check what you actually got
+python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
 ```
 
 ---
 
-## Mirror Sources
-
-### pip Mirror
+## HuggingFace Environment Variables
 
 ```bash
-# Temporary use
-pip install <package> -i https://pypi.tuna.tsinghua.edu.cn/simple
-pip install <package> -i https://mirrors.aliyun.com/pypi/simple/
+# Mirror endpoint (for China mainland)
+export HF_ENDPOINT=https://hf-mirror.com
 
-# Set as default
+# Custom cache directory (when home disk is small)
+export HF_HUB_CACHE=/path/to/large/disk/hf_cache
+export TRANSFORMERS_CACHE=/path/to/large/disk/transformers_cache
+
+# Auth token (alternative to huggingface-cli login)
+export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Offline mode (use cached models only, no network)
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+# Disable telemetry
+export HF_HUB_DISABLE_TELEMETRY=1
+
+# Download specific files only (skip large unused files)
+# In Python:
+# snapshot_download(repo_id="...", allow_patterns=["*.json", "*.safetensors"], ignore_patterns=["*.bin", "optimizer*"])
+```
+
+---
+
+## CUDA & GPU Debugging
+
+```bash
+# Which CUDA does torch actually use (not nvidia-smi driver version)
+python -c "import torch; print(torch.version.cuda)"
+
+# GPU compute capability (determines flash-attn compatibility)
+python -c "import torch; print(torch.cuda.get_device_capability())"
+# SM 70 = V100, SM 75 = T4, SM 80 = A100/A10, SM 86 = RTX 30xx, SM 89 = RTX 40xx
+
+# Detailed VRAM breakdown during training
+python -c "import torch; torch.cuda.memory_summary()"
+
+# Reset VRAM tracking for measurement
+python -c "
+import torch
+torch.cuda.reset_peak_memory_stats()
+# ... run your code ...
+print(f'Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB')
+"
+
+# Force specific GPU
+export CUDA_VISIBLE_DEVICES=0      # single GPU
+export CUDA_VISIBLE_DEVICES=0,1    # first two GPUs
+export CUDA_VISIBLE_DEVICES=""     # force CPU mode
+
+# Real-time GPU monitoring (refreshes every 1s)
+watch -n 1 nvidia-smi
+# Or more detailed
+nvidia-smi dmon -s u -d 1
+```
+
+---
+
+## NCCL & Distributed Training
+
+```bash
+# Debug distributed issues
+export NCCL_DEBUG=INFO
+export NCCL_DEBUG_SUBSYS=ALL
+
+# Increase timeout (default 300s, set higher for large model loading)
+export NCCL_TIMEOUT=1800
+
+# Disable InfiniBand (common fix for cloud instances)
+export NCCL_IB_DISABLE=1
+
+# Force socket-based communication
+export NCCL_SOCKET_IFNAME=eth0
+
+# torch.distributed debugging
+export TORCH_DISTRIBUTED_DEBUG=DETAIL
+
+# Kill stuck distributed processes
+pkill -f torchrun
+pkill -f torch.distributed.launch
+```
+
+---
+
+## Memory Optimization Env Vars
+
+```bash
+# Disable torch.compile (avoids triton issues, speeds up startup)
+export TORCH_COMPILE_DISABLE=1
+
+# OpenMP thread control (prevent CPU oversubscription)
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+
+# Reduce PyTorch memory fragmentation
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
+# macOS: fix OpenMP duplicate library error
+export KMP_DUPLICATE_LIB_OK=TRUE
+
+# Control CUDA memory allocator
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+```
+
+---
+
+## Model Format Conversion
+
+```bash
+# safetensors → PyTorch bin
+python -c "
+from safetensors.torch import load_file
+import torch
+state_dict = load_file('model.safetensors')
+torch.save(state_dict, 'pytorch_model.bin')
+"
+
+# PyTorch bin → safetensors
+python -c "
+import torch
+from safetensors.torch import save_file
+state_dict = torch.load('pytorch_model.bin', map_location='cpu')
+save_file(state_dict, 'model.safetensors')
+"
+
+# HuggingFace model → GGUF (for llama.cpp)
+# Requires: git clone https://github.com/ggerganov/llama.cpp && pip install -r requirements.txt
+python llama.cpp/convert_hf_to_gguf.py ./model_dir --outtype f16 --outfile model.gguf
+
+# Quantize GGUF
+./llama.cpp/llama-quantize model.gguf model-q4_k_m.gguf Q4_K_M
+```
+
+---
+
+## Training Launch Patterns
+
+```bash
+# Single GPU with specific device
+CUDA_VISIBLE_DEVICES=0 python train.py
+
+# Multi-GPU with torchrun
+torchrun --nproc_per_node=4 --master_port=29500 train.py
+
+# HuggingFace accelerate (run accelerate config first)
+accelerate launch --multi_gpu --num_processes=4 train.py
+
+# DeepSpeed ZeRO
+deepspeed --num_gpus=4 train.py --deepspeed ds_config.json
+
+# DeepSpeed with accelerate
+accelerate launch --use_deepspeed --deepspeed_config_file ds_config.json train.py
+
+# Background with log capture
+tmux new -s train "python train.py 2>&1 | tee logs/$(date +%Y%m%d_%H%M%S).log"
+```
+
+---
+
+## Pip Mirrors (China Mainland)
+
+```bash
+# Temporary (per-install)
+pip install <pkg> -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# Persistent
 pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
-# Restore default
-pip config unset global.index-url
-```
-
-### conda Mirror
-
-```bash
-# Add mirror channels
-conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
-conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free
-conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch
-
-# Check configuration
-conda config --show channels
-```
-
-### Git Proxy
-
-```bash
-# Replace git:// with https://
-git config --global url."https://github.com/".insteadOf "git@github.com:"
-
-# Set proxy
-git config --global http.proxy http://127.0.0.1:7890
-git config --global https.proxy https://127.0.0.1:7890
-
-# Remove proxy
-git config --global --unset http.proxy
-git config --global --unset https.proxy
-```
-
----
-
-## Git Operations
-
-```bash
-# Clone repository
-git clone https://github.com/username/repo.git
-git clone --depth 1 https://github.com/username/repo.git  # Shallow clone
-
-# Create branch
-git checkout -b experiment/xxx
-
-# List branches
-git branch -a
-
-# Switch branch
-git checkout main
-git checkout -b new_branch
-
-# Commit changes
-git add .
-git commit -m "description"
-
-# Check remote
-git remote -v
-git fetch origin
-```
-
----
-
-## Model Download
-
-### HuggingFace
-
-```bash
-# Install huggingface_hub
-pip install huggingface_hub
-
-# Download model
-python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='meta-llama/Llama-2-7b', local_dir='./Llama-2-7b')"
-
-# Or use hf_hub_download
-python -c "from huggingface_hub import hf_hub_download; hf_hub_download(repo_id='meta-llama/Llama-2-7b-hf', filename='config.json', local_dir='./models')"
-
-# Login
-huggingface-cli login
-# Or
-python -c "from huggingface_hub import login; login('your_token')"
-```
-
-### Git LFS
-
-```bash
-# Install
-pip install git-lfs
-
-# Enable
-git lfs install
-
-# Clone large repo (auto download LFS files)
-git clone https://huggingface.co/username/repo
-
-# Manual pull
-git lfs pull
-```
-
----
-
-## File Transfer
-
-### rsync
-
-```bash
-# Sync to remote
-rsync -avz --exclude '.git' --exclude '__pycache__' --exclude '*.pyc' ./ user@server:/path/
-
-# Sync to local
-rsync -avz user@server:/path/outputs/ ./outputs/
-
-# With delete (files remote has but local doesn't)
-rsync -avz --delete ./ user@server:/path/
-```
-
-### scp
-
-```bash
-# Upload
-scp file.txt user@server:/path/
-scp -r folder/ user@server:/path/
-
-# Download
-scp user@server:/path/file.txt ./
-scp -r user@server:/path/folder/ ./
-```
-
----
-
-## Remote Server Operations
-
-```bash
-# SSH connection
-ssh user@server
-ssh -i ~/.ssh/key.pem user@server
-
-# Execute command
-ssh user@server "cd /path && python train.py"
-
-# Port forwarding
-ssh -L 8888:localhost:8888 user@server
-```
-
----
-
-## Background Execution
-
-### tmux
-
-```bash
-# Create session
-tmux new -s experiment
-
-# List sessions
-tmux ls
-
-# Detach session
-# Ctrl+B, then press D
-
-# Reattach
-tmux attach -t experiment
-
-# Kill session
-tmux kill-session -t experiment
-
-# Run command in session
-tmux send-keys -t experiment "python train.py" Enter
-```
-
-### nohup / screen
-
-```bash
-# nohup background run
-nohup python train.py > output.log 2>&1 &
-
-# screen
-screen -S experiment
-python train.py
-# Ctrl+A, then press D to exit
-
-screen -ls
-screen -r experiment
-```
-
----
-
-## Process Management
-
-```bash
-# View processes
-ps aux | grep python
-ps -ef | grep python
-
-# Kill process
-kill <PID>
-kill -9 <PID>  # Force kill
-
-# Kill by name
-pkill -9 python
-pkill -9 -f "train.py"
-
-# Check GPU usage
-nvidia-smi
-watch -n 1 nvidia-smi  # Real-time monitoring
-
-# Check port usage
-lsof -i :8888
-netstat -tulpn | grep 8888
-```
-
----
-
-## Log Viewing
-
-```bash
-# View log
-tail -f log.txt
-tail -n 100 log.txt
-cat log.txt
-
-# Search keywords
-grep "error" log.txt
-grep -n "loss" log.txt
-
-# Real-time monitoring
-watch -n 1 "tail -n 5 log.txt"
-```
-
----
-
-## Data Processing
-
-```bash
-# Decompress
-tar -xvf file.tar
-tar -xzvf file.tar.gz
-tar -xjvf file.tar.bz2
-unzip file.zip
-
-# View file
-head -n 10 file.txt
-wc -l file.txt  # Line count
-
-# Convert format
-dos2unix file.txt  # Windows to Unix
-unix2dos file.txt  # Unix to Windows
-```
-
----
-
-## Python Debugging
-
-```bash
-# Simple import test
-python -c "import torch; print(torch.__version__)"
-
-# Check install path
-python -c "import torch; print(torch.__file__)"
-
-# Performance profiling
-python -m cProfile train.py
-
-# Memory profiling
-pip install memory_profiler
-python -m memory_profiler train.py
-
-# Interactive debug
-python -i train.py
->>> import pdb; pdb.pm()
-```
-
----
-
-## Conda Aliases (add to ~/.bashrc)
-
-```bash
-# Quick activate common environments
-alias ac='conda activate'
-alias dac='conda deactivate'
-alias cl='conda env list'
-
-# Quick install
-alias pipi='pip install -i https://pypi.tuna.tsinghua.edu.cn/simple'
-
-# Git common commands
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit -m'
-alias gp='git push'
-alias gl='git pull'
-alias gco='git checkout'
-```
-
----
-
-## Quick Check Commands
-
-```bash
-# System info
-uname -a
-cat /etc/os-release
-
-# Python version
-python --version
-python3 --version
-
-# pip version
-pip --version
-pip -V
-
-# CUDA version
-nvcc --version
-nvidia-smi
-
-# GPU info
-nvidia-smi -L
-nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv
-
-# Package version
-pip show <package>
-pip list | grep <package>
+# NOTE: PyTorch --index-url takes precedence over pip mirror config
+# Use BOTH for full coverage:
+pip install torch --index-url https://download.pytorch.org/whl/cu124
+pip install transformers -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```

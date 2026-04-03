@@ -1,128 +1,118 @@
 #!/bin/bash
 # ============================================
-# Environment Check Script - Deep Learning Project Reproduction
+# Environment Check Script — DL Reproduction
 # Usage: bash reference/environment_check.sh
+# Works on: Linux, macOS, Windows (Git Bash/MSYS2)
 # ============================================
 
 echo "=========================================="
-echo "       Deep Learning Environment Check Report"
+echo "  DL Environment Diagnostic Report"
 echo "=========================================="
 echo ""
 
-# 1. System Information
-echo "System Information"
-echo "-------------------------------------------"
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    echo "OS: $NAME $VERSION"
-fi
-echo "Kernel: $(uname -r)"
-echo "Architecture: $(uname -m)"
+# ---- OS ----
+echo "[System]"
+case "$(uname -s)" in
+    Linux*)
+        if [ -f /etc/os-release ]; then . /etc/os-release; echo "OS: $NAME $VERSION"; fi
+        ;;
+    Darwin*) echo "OS: macOS $(sw_vers -productVersion)" ;;
+    MINGW*|MSYS*|CYGWIN*) echo "OS: Windows ($(uname -s))" ;;
+esac
+echo "Arch: $(uname -m)"
 echo ""
 
-# 2. Python Environment
-echo "Python Environment"
-echo "-------------------------------------------"
+# ---- Python ----
+echo "[Python]"
 if command -v python &> /dev/null; then
-    PYTHON_VERSION=$(python --version 2>&1)
-    echo "Python: $PYTHON_VERSION"
-    echo "Path: $(which python)"
+    echo "python: $(python --version 2>&1) ($(which python))"
 else
-    echo "Python not found"
+    echo "python: NOT FOUND"
+fi
+if command -v python3 &> /dev/null; then
+    echo "python3: $(python3 --version 2>&1) ($(which python3))"
 fi
 echo ""
 
-# 3. Package Manager
-echo "Package Manager"
-echo "-------------------------------------------"
-if command -v pip &> /dev/null; then
-    echo "pip: $(pip --version)"
-fi
-if command -v pip3 &> /dev/null; then
-    echo "pip3: $(pip3 --version)"
-fi
-if command -v conda &> /dev/null; then
-    echo "conda: $(conda --version)"
-    conda info --envs
-fi
-if command -v uv &> /dev/null; then
-    echo "uv: $(uv --version)"
+# ---- Package managers ----
+echo "[Package Managers]"
+command -v pip &> /dev/null && echo "pip: $(pip --version 2>&1)"
+command -v conda &> /dev/null && echo "conda: $(conda --version 2>&1)"
+command -v uv &> /dev/null && echo "uv: $(uv --version 2>&1)"
+if [ -n "$VIRTUAL_ENV" ]; then
+    echo "Active venv: $VIRTUAL_ENV"
+elif [ -n "$CONDA_DEFAULT_ENV" ]; then
+    echo "Active conda: $CONDA_DEFAULT_ENV"
+else
+    echo "WARNING: No virtual environment active"
 fi
 echo ""
 
-# 4. CUDA Environment
-echo "CUDA Environment"
-echo "-------------------------------------------"
+# ---- CUDA ----
+echo "[CUDA & GPU]"
 if command -v nvcc &> /dev/null; then
-    NVCC_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([^,]*\),.*/\1/')
-    echo "nvcc: $NVCC_VERSION"
+    echo "nvcc: $(nvcc --version | grep 'release' | sed 's/.*release \([^,]*\),.*/\1/')"
 else
-    echo "nvcc not found or not in PATH"
+    echo "nvcc: NOT FOUND (custom CUDA kernels won't compile)"
 fi
 
 if command -v nvidia-smi &> /dev/null; then
-    echo ""
-    echo "GPU Information:"
-    nvidia-smi --query-gpu=name,memory.total,memory.free,driver_version,cuda_version --format=csv
+    nvidia-smi --query-gpu=name,memory.total,memory.free,driver_version --format=csv,noheader 2>/dev/null | while read line; do
+        echo "GPU: $line"
+    done
+    DRIVER_CUDA=$(nvidia-smi | grep "CUDA Version" | sed 's/.*CUDA Version: \([0-9.]*\).*/\1/' 2>/dev/null)
+    [ -n "$DRIVER_CUDA" ] && echo "Driver CUDA cap: $DRIVER_CUDA"
 else
-    echo "nvidia-smi not found (may not have NVIDIA GPU or driver installed)"
+    echo "nvidia-smi: NOT FOUND (no NVIDIA GPU or driver)"
 fi
 echo ""
 
-# 5. Key Python Packages
-echo "Installed Key Packages"
-echo "-------------------------------------------"
-check_package() {
-    python -c "import $1; print('$1: ' + $1.__version__)" 2>/dev/null || echo "$1: Not installed"
-}
+# ---- Key packages ----
+echo "[Key Packages]"
+python -c "
+packages = ['torch', 'torchvision', 'transformers', 'accelerate', 'datasets',
+            'bitsandbytes', 'peft', 'trl', 'vllm', 'deepspeed']
+for pkg in packages:
+    try:
+        mod = __import__(pkg)
+        ver = getattr(mod, '__version__', '?')
+        print(f'  {pkg}: {ver}')
+    except ImportError:
+        pass
 
-check_package torch
-check_package torchvision
-check_package transformers
-check_package numpy
-check_package pandas
-check_package matplotlib
-check_package tqdm
+# Torch CUDA details
+try:
+    import torch
+    print(f'  torch.cuda: {torch.cuda.is_available()} (built with CUDA {torch.version.cuda})')
+    if torch.cuda.is_available():
+        cap = torch.cuda.get_device_capability()
+        print(f'  GPU compute: sm_{cap[0]}{cap[1]}')
+        mem = torch.cuda.get_device_properties(0).total_mem / 1e9
+        print(f'  GPU VRAM: {mem:.1f} GB')
+except:
+    pass
+" 2>/dev/null
 echo ""
 
-# 6. Network Check
-echo "Network Environment Check"
-echo "-------------------------------------------"
-check_network() {
-    if ping -c 1 -W 3 $1 >/dev/null 2>&1; then
-        echo "$1: Connection OK"
-    else
-        echo "$1: Cannot connect"
+# ---- Network ----
+echo "[Network]"
+check_url() {
+    if command -v curl &> /dev/null; then
+        curl -s --max-time 5 "$1" > /dev/null 2>&1 && echo "  $2: OK" || echo "  $2: BLOCKED/SLOW"
     fi
 }
-
-check_network pypi.org
-check_network huggingface.co
-check_network github.com
+check_url "https://pypi.org" "pypi.org"
+check_url "https://huggingface.co" "huggingface.co"
+check_url "https://github.com" "github.com"
 echo ""
 
-# 7. Recommendations
-echo "Recommendations"
-echo "-------------------------------------------"
-
-# CUDA check
-if ! command -v nvidia-smi &> /dev/null; then
-    echo "- No NVIDIA GPU or driver detected, may need to run in CPU mode"
+# ---- Disk ----
+echo "[Disk Space]"
+if command -v df &> /dev/null; then
+    df -h . 2>/dev/null | tail -1 | awk '{print "  Current dir: " $4 " free of " $2}'
 fi
-
-# Python version recommendation
-PYTHON_MAJOR=$(python -c 'import sys; print(sys.version_info.major)' 2>/dev/null)
-PYTHON_MINOR=$(python -c 'import sys; print(sys.version_info.minor)' 2>/dev/null)
-if [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -gt 11 ]; then
-    echo "- Python 3.$PYTHON_MINOR is relatively new, some older projects may be incompatible"
-fi
-
-# Virtual environment check
-if [ -z "$VIRTUAL_ENV" ] && [ -z "$CONDA_DEFAULT_ENV" ]; then
-    echo "- Recommend using virtual environment (conda or venv) for project isolation"
-fi
-
 echo ""
+
 echo "=========================================="
-echo "          Check Complete"
+echo "  Check complete"
 echo "=========================================="

@@ -1,105 +1,93 @@
 #!/bin/bash
 # ============================================
-# Model/Data Download Script Template
+# Model/Data Download Script
 # Usage:
-#   bash scripts/download_model.sh [model_id] [output_dir]
 #   bash scripts/download_model.sh huggingface meta-llama/Llama-2-7b-hf ./models
+#   bash scripts/download_model.sh url https://example.com/model.bin ./
+#   bash scripts/download_model.sh github user/repo ./
+#   bash scripts/download_model.sh kaggle user/dataset ./data
 # ============================================
 
-# Default parameters
 SOURCE=${1:-huggingface}
 MODEL_ID=${2:-}
 OUTPUT_DIR=${3:-"./models"}
 
-# Help information
-if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
-    echo "Usage: bash download_model.sh <source> <model_id> <output_dir>"
+if [ "$1" = "-h" ] || [ "$1" = "--help" ] || [ -z "$MODEL_ID" ]; then
+    echo "Usage: bash download_model.sh <source> <identifier> [output_dir]"
     echo ""
-    echo "Parameters:"
-    echo "  source    Download source: huggingface, github, url (default: huggingface)"
-    echo "  model_id  Model identifier"
-    echo "           - huggingface: username/model-name"
-    echo "           - github: username/repo"
-    echo "           - url: Direct download link"
-    echo "  output_dir Output directory (default: ./models)"
+    echo "Sources:"
+    echo "  huggingface  <org/model>         Download from HuggingFace Hub"
+    echo "  url          <direct_url>        Download from direct URL"
+    echo "  github       <user/repo>         Clone from GitHub"
+    echo "  kaggle       <user/dataset>      Download from Kaggle"
     echo ""
     echo "Examples:"
-    echo "  bash download_model.sh huggingface meta-llama/Llama-2-7b-hf ./models"
-    echo "  bash download_model.sh github facebook/opt-125m ./opt-model"
+    echo "  bash download_model.sh huggingface meta-llama/Llama-2-7b-hf ./models/llama2"
     echo "  bash download_model.sh url https://example.com/model.bin ./"
     exit 0
 fi
 
-# Interactive input
-if [ -z "$MODEL_ID" ]; then
-    echo "=========================================="
-    echo "     Model/Data Download Script"
-    echo "=========================================="
-    echo ""
+echo "=========================================="
+echo "  Download: $MODEL_ID"
+echo "  Source: $SOURCE → $OUTPUT_DIR"
+echo "=========================================="
 
-    echo "Select download source:"
-    echo "  [1] HuggingFace Hub"
-    echo "  [2] GitHub Repository"
-    echo "  [3] Direct URL"
-    echo "  [4] Kaggle"
-    read -p "Select [1-4]: " CHOICE
-
-    case $CHOICE in
-        1) SOURCE="huggingface";;
-        2) SOURCE="github";;
-        3) SOURCE="url";;
-        4) SOURCE="kaggle";;
-        *) echo "Invalid selection"; exit 1;;
-    esac
-
-    if [ "$SOURCE" != "kaggle" ]; then
-        read -p "Enter model/data identifier: " MODEL_ID
-    fi
-
-    read -p "Output directory [default: ./models]: " INPUT_DIR
-    OUTPUT_DIR=${INPUT_DIR:-"./models"}
-fi
-
-echo ""
-echo "Source: $SOURCE"
-echo "Identifier: $MODEL_ID"
-echo "Output: $OUTPUT_DIR"
-echo ""
-
-# Create output directory
 mkdir -p "$OUTPUT_DIR"
 
 # ============================================
 # HuggingFace Download
 # ============================================
 download_huggingface() {
-    echo "Downloading from HuggingFace..."
+    # Ensure huggingface_hub is installed
+    pip show huggingface_hub > /dev/null 2>&1 || pip install huggingface_hub
 
-    # Check if installed
-    pip show huggingface_hub >/dev/null 2>&1 || pip install huggingface_hub
+    # Check auth for gated models
+    python -c "
+from huggingface_hub import HfApi
+try:
+    token = HfApi().token
+    if token:
+        print('HuggingFace: Authenticated')
+    else:
+        print('HuggingFace: Not logged in (gated models will fail)')
+        print('  → Run: huggingface-cli login')
+except:
+    print('HuggingFace: Auth check failed')
+" 2>/dev/null
 
-    # Check if logged in
-    TOKEN=$(python -c "from huggingface_hub import HfApi; print(HfApi().token)" 2>/dev/null)
-    if [ -z "$TOKEN" ] || [ "$TOKEN" = "None" ]; then
-        echo "Warning: Not logged in to HuggingFace, some models may not be downloadable"
-        echo "   Login: huggingface-cli login"
+    # Check for HF mirror
+    if [ -n "$HF_ENDPOINT" ]; then
+        echo "Using HF mirror: $HF_ENDPOINT"
     fi
 
-    # Download model
+    # Download with resume support
     python -c "
 from huggingface_hub import snapshot_download
-import os
+import sys
 
 try:
-    snapshot_download(
+    path = snapshot_download(
         repo_id='$MODEL_ID',
         local_dir='$OUTPUT_DIR',
-        local_dir_use_symlinks=False
+        resume_download=True,
+        max_workers=4,
     )
-    print('Download complete!')
+    print(f'Downloaded to: {path}')
 except Exception as e:
-    print(f'Error: {e}')
-    print('Trying single file download...')
+    error_msg = str(e)
+    if '401' in error_msg or '403' in error_msg:
+        print(f'ACCESS DENIED: {e}')
+        print()
+        print('This is likely a gated model. To fix:')
+        print('1. Visit https://huggingface.co/$MODEL_ID and accept the license')
+        print('2. Run: huggingface-cli login')
+        print('3. Retry this download')
+    elif '404' in error_msg:
+        print(f'NOT FOUND: {e}')
+        print('Check the model ID — it should be like \"org/model-name\"')
+    else:
+        print(f'Error: {e}')
+    sys.exit(1)
 "
 }
 
@@ -107,36 +95,35 @@ except Exception as e:
 # GitHub Download
 # ============================================
 download_github() {
-    echo "Downloading from GitHub..."
+    REPO_URL="https://github.com/$MODEL_ID.git"
 
-    # Try using git clone
     if command -v git &> /dev/null; then
-        # Extract username and repo name
-        REPO_URL="https://github.com/$MODEL_ID.git"
-        git clone "$REPO_URL" "$OUTPUT_DIR"
+        echo "Cloning $REPO_URL (shallow)..."
+        git clone --depth 1 "$REPO_URL" "$OUTPUT_DIR"
     else
-        # Download zip using GitHub API
-        curl -L "https://github.com/$MODEL_ID/archive/refs/heads/main.zip" -o "$OUTPUT_DIR.zip"
-        unzip "$OUTPUT_DIR.zip" -d "$OUTPUT_DIR"
+        echo "git not found — downloading zip..."
+        ZIP_URL="https://github.com/$MODEL_ID/archive/refs/heads/main.zip"
+        if command -v curl &> /dev/null; then
+            curl -L "$ZIP_URL" -o "${OUTPUT_DIR}.zip"
+        elif command -v wget &> /dev/null; then
+            wget "$ZIP_URL" -O "${OUTPUT_DIR}.zip"
+        fi
+        unzip "${OUTPUT_DIR}.zip" -d "$OUTPUT_DIR"
     fi
 }
 
 # ============================================
-# URL Download
+# Direct URL Download
 # ============================================
 download_url() {
-    echo "Downloading from URL..."
-
-    # Extract filename
     FILENAME=$(basename "$MODEL_ID")
 
-    # Choose download tool
     if command -v curl &> /dev/null; then
-        curl -L "$MODEL_ID" -o "$OUTPUT_DIR/$FILENAME"
+        curl -L -C - "$MODEL_ID" -o "$OUTPUT_DIR/$FILENAME"  # -C - enables resume
     elif command -v wget &> /dev/null; then
-        wget "$MODEL_ID" -O "$OUTPUT_DIR/$FILENAME"
+        wget -c "$MODEL_ID" -O "$OUTPUT_DIR/$FILENAME"  # -c enables resume
     else
-        echo "Error: curl or wget required"
+        echo "ERROR: curl or wget required"
         exit 1
     fi
 }
@@ -145,63 +132,42 @@ download_url() {
 # Kaggle Download
 # ============================================
 download_kaggle() {
-    echo "Downloading from Kaggle..."
+    pip show kaggle > /dev/null 2>&1 || pip install kaggle
 
-    # Check kaggle CLI
-    pip show kaggle >/dev/null 2>&1 || pip install kaggle
-
-    # Check authentication
     if [ ! -f "$HOME/.kaggle/kaggle.json" ]; then
-        echo "Error: Kaggle API credentials required"
-        echo "1. Visit https://www.kaggle.com/account"
-        echo "2. Click 'Create New API Token'"
-        echo "3. Place kaggle.json in ~/.kaggle/"
+        echo "ERROR: Kaggle API key required"
+        echo "1. Go to https://www.kaggle.com/settings → API → Create New Token"
+        echo "2. Save kaggle.json to ~/.kaggle/"
+        echo "3. chmod 600 ~/.kaggle/kaggle.json"
         exit 1
-    fi
-
-    if [ -z "$MODEL_ID" ]; then
-        read -p "Enter Kaggle dataset (e.g., username/dataset-name): " MODEL_ID
     fi
 
     kaggle datasets download -d "$MODEL_ID" -p "$OUTPUT_DIR" --unzip
 }
 
 # ============================================
-# Execute Download
+# Execute
 # ============================================
 case $SOURCE in
-    huggingface)
-        download_huggingface
-        ;;
-    github)
-        download_github
-        ;;
-    url)
-        download_url
-        ;;
-    kaggle)
-        download_kaggle
-        ;;
-    *)
-        echo "Unknown source: $SOURCE"
-        exit 1
-        ;;
+    huggingface) download_huggingface ;;
+    github)      download_github ;;
+    url)         download_url ;;
+    kaggle)      download_kaggle ;;
+    *)           echo "Unknown source: $SOURCE"; exit 1 ;;
 esac
 
 # ============================================
-# Verify Download
+# Verify
 # ============================================
 echo ""
 echo "=========================================="
-echo "Verifying download..."
-echo "=========================================="
-
 if [ -d "$OUTPUT_DIR" ]; then
-    echo "Output directory contents:"
-    ls -lh "$OUTPUT_DIR"
-    echo ""
-    echo "Download complete!"
+    FILE_COUNT=$(find "$OUTPUT_DIR" -type f | wc -l)
+    TOTAL_SIZE=$(du -sh "$OUTPUT_DIR" 2>/dev/null | cut -f1)
+    echo "Download complete: $FILE_COUNT files, $TOTAL_SIZE"
+    echo "Location: $OUTPUT_DIR"
 else
-    echo "Download failed, please check error messages"
+    echo "Download FAILED — check errors above"
     exit 1
 fi
+echo "=========================================="

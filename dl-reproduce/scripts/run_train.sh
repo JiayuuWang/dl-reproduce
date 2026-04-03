@@ -1,107 +1,130 @@
 #!/bin/bash
 # ============================================
 # Training Run Script Template
-# Usage: bash scripts/run_train.sh [args...]
+# Usage: bash scripts/run_train.sh [mode] [args...]
+#
+# Modes: foreground (default), tmux, nohup
+# Example:
+#   RUN_MODE=tmux bash scripts/run_train.sh train.py --batch_size 4
+#   bash scripts/run_train.sh train.py --max_steps 1  # smoke test
 # ============================================
 
-# Default parameters
-CONFIG_FILE=${1:-"config.yaml"}
-EXP_NAME=${2:-"experiment_$(date +%Y%m%d_%H%M%S)"}
-LOG_DIR=${3:-"logs"}
+# Parse arguments
+TRAIN_SCRIPT=${1:-train.py}
+shift
+EXTRA_ARGS="$@"
 
-# Create output directories
+EXP_NAME=${EXP_NAME:-"exp_$(date +%Y%m%d_%H%M%S)"}
+LOG_DIR=${LOG_DIR:-"logs"}
+RUN_MODE=${RUN_MODE:-"foreground"}
+NUM_GPUS=${NUM_GPUS:-1}
+LAUNCHER=${LAUNCHER:-"python"}  # python, torchrun, accelerate, deepspeed
+
+# Create directories
 mkdir -p "$LOG_DIR"
 mkdir -p "checkpoints/$EXP_NAME"
 
-# Log file
 LOG_FILE="$LOG_DIR/${EXP_NAME}.log"
 
 echo "=========================================="
-echo "     Training Run Script"
+echo "  Training: $EXP_NAME"
 echo "=========================================="
-echo "Experiment Name: $EXP_NAME"
-echo "Log: $LOG_FILE"
+echo "Script:   $TRAIN_SCRIPT"
+echo "Launcher: $LAUNCHER"
+echo "GPUs:     $NUM_GPUS"
+echo "Mode:     $RUN_MODE"
+echo "Log:      $LOG_FILE"
 echo "=========================================="
 
 # ============================================
-# Training Command (modify based on project)
+# Build launch command based on launcher
 # ============================================
+case $LAUNCHER in
+    "python")
+        CMD="python $TRAIN_SCRIPT $EXTRA_ARGS"
+        ;;
+    "torchrun")
+        CMD="torchrun --nproc_per_node=$NUM_GPUS --master_port=${MASTER_PORT:-29500} $TRAIN_SCRIPT $EXTRA_ARGS"
+        ;;
+    "accelerate")
+        CMD="accelerate launch --num_processes=$NUM_GPUS $TRAIN_SCRIPT $EXTRA_ARGS"
+        ;;
+    "deepspeed")
+        DS_CONFIG=${DS_CONFIG:-"ds_config.json"}
+        CMD="deepspeed --num_gpus=$NUM_GPUS $TRAIN_SCRIPT --deepspeed $DS_CONFIG $EXTRA_ARGS"
+        ;;
+    *)
+        echo "Unknown launcher: $LAUNCHER (use: python, torchrun, accelerate, deepspeed)"
+        exit 1
+        ;;
+esac
 
-# Option 1: Direct Python run
-CMD="python train.py \
-    --config $CONFIG_FILE \
-    --exp_name $EXP_NAME \
-    --output_dir checkpoints/$EXP_NAME \
-    --logging_dir $LOG_DIR \
-    ${@:3}  # Extra parameters
-
-# Option 2: Using torchrun (distributed)
-# CMD="torchrun --nproc_per_node=1 train.py \
-#     --config $CONFIG_FILE \
-#     --exp_name $EXP_NAME \
-#     ${@:3}
-
-# Option 3: Using accelerate
-# CMD="accelerate launch train.py \
-#     --config $CONFIG_FILE \
-#     --exp_name $EXP_NAME \
-#     ${@:3}
+echo ""
+echo "Command: $CMD"
+echo ""
 
 # ============================================
-# Run Mode Selection
+# Execute based on run mode
 # ============================================
-
-RUN_MODE=${RUN_MODE:-"foreground"}
-
 case $RUN_MODE in
     "foreground")
-        echo "Run Mode: Foreground"
-        echo "Command: $CMD"
-        echo ""
-        eval $CMD 2>&1 | tee "$LOG_FILE"
+        eval "$CMD" 2>&1 | tee "$LOG_FILE"
+        EXIT_CODE=${PIPESTATUS[0]}
         ;;
 
     "tmux")
-        echo "Run Mode: tmux background"
-        echo "Session Name: $EXP_NAME"
-
-        # Create tmux session and run
-        tmux new-session -d -s "$EXP_NAME" "eval $CMD 2>&1 | tee $LOG_FILE"
-
-        echo "View log: tmux attach -t $EXP_NAME"
-        echo "View log (without entering): tmux capture-pane -t $EXP_NAME -p | tail -20"
-        echo "End session: tmux kill-session -t $EXP_NAME"
+        if ! command -v tmux &> /dev/null; then
+            echo "ERROR: tmux not installed"
+            exit 1
+        fi
+        tmux new-session -d -s "$EXP_NAME" "eval $CMD 2>&1 | tee $LOG_FILE; echo 'Exit code: '\$?"
+        echo "Started in tmux session: $EXP_NAME"
+        echo ""
+        echo "  View:    tmux attach -t $EXP_NAME"
+        echo "  Peek:    tmux capture-pane -t $EXP_NAME -p | tail -20"
+        echo "  Stop:    tmux kill-session -t $EXP_NAME"
+        EXIT_CODE=0
         ;;
 
     "nohup")
-        echo "Run Mode: nohup background"
-
         nohup bash -c "$CMD" > "$LOG_FILE" 2>&1 &
         PID=$!
-
-        echo "PID: $PID"
-        echo "View log: tail -f $LOG_FILE"
-        echo "End process: kill $PID"
+        echo "$PID" > "$LOG_DIR/${EXP_NAME}.pid"
+        echo "Started in background (PID: $PID)"
+        echo ""
+        echo "  View log:  tail -f $LOG_FILE"
+        echo "  Stop:      kill $PID"
+        EXIT_CODE=0
         ;;
 
     *)
-        echo "Unknown run mode: $RUN_MODE"
-        echo "Supported modes: foreground, tmux, nohup"
+        echo "Unknown mode: $RUN_MODE (use: foreground, tmux, nohup)"
         exit 1
         ;;
 esac
 
 # ============================================
-# Post-Training Operations
+# Post-run
 # ============================================
-echo ""
-echo "=========================================="
-echo "Training complete!"
-echo "=========================================="
+if [ "$RUN_MODE" = "foreground" ]; then
+    echo ""
+    echo "=========================================="
+    if [ "$EXIT_CODE" -eq 0 ]; then
+        echo "  Training complete (exit code 0)"
+    else
+        echo "  Training FAILED (exit code $EXIT_CODE)"
+        echo "  Check log: $LOG_FILE"
+    fi
+    echo "=========================================="
+fi
 
-# Save final state
-echo "EXP_NAME=$EXP_NAME" > "$LOG_DIR/${EXP_NAME}_env.sh"
-echo "LOG_FILE=$LOG_FILE" >> "$LOG_DIR/${EXP_NAME}_env.sh"
-
-echo "Log location: $LOG_FILE"
-echo "Model location: checkpoints/$EXP_NAME"
+# Save experiment metadata
+cat > "$LOG_DIR/${EXP_NAME}_meta.sh" << EOF
+EXP_NAME=$EXP_NAME
+TRAIN_SCRIPT=$TRAIN_SCRIPT
+LAUNCHER=$LAUNCHER
+NUM_GPUS=$NUM_GPUS
+CMD="$CMD"
+LOG_FILE=$LOG_FILE
+START_TIME=$(date -Iseconds)
+EOF
